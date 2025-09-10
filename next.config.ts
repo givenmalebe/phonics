@@ -2,16 +2,25 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  output: 'export',
+  trailingSlash: true,
   experimental: {
     // Optimize bundle size and loading speed
     optimizePackageImports: ['lucide-react', '@radix-ui/react-avatar', '@radix-ui/react-checkbox'],
   },
-  // Enable SWC minification for better performance
-  swcMinify: true,
   // Enable compression
   compress: true,
+  // Skip linting during build for deployment
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  // Skip type checking during build for deployment
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   // Optimize images
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',

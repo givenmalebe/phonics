@@ -1,0 +1,424 @@
+# Stretch Education SA - GraphQL Queries
+
+# ===== USER AUTHENTICATION QUERIES =====
+
+# Get current authenticated user profile
+query GetCurrentUser @auth(level: USER) {
+  user(key: { id_expr: "auth.uid" }) {
+    id
+    email
+    firstName
+    lastName
+    role
+    phoneNumber
+    dateOfBirth
+    address
+    profilePicture
+    isActive
+    onboardingCompleted
+    createdAt
+    updatedAt
+  }
+}
+
+# ===== TUTOR DASHBOARD QUERIES =====
+
+# Get tutor's assigned students with progress summary
+query GetTutorStudents @auth(level: USER) {
+  user(key: { id_expr: "auth.uid" }) {
+    id
+    firstName
+    lastName
+    students_as_tutor {
+      id
+      userId
+      user {
+        firstName
+        lastName
+        email
+        profilePicture
+      }
+      grade
+      studentNumber
+      currentLevel
+      enrollmentDate
+      guardianName
+      guardianPhone
+      isActive
+      progress_records(orderBy: { createdAt: DESC }, limit: 5) {
+        id
+        lesson {
+          title
+          level
+          moduleNumber
+          lessonNumber
+        }
+        status
+        score
+        completedAt
+      }
+    }
+  }
+}
+
+# Get detailed student information for tutor
+query GetStudentDetails($studentId: UUID!) @auth(level: USER) {
+  student(id: $studentId) {
+    id
+    userId
+    user {
+      firstName
+      lastName
+      email
+      phoneNumber
+      dateOfBirth
+      profilePicture
+    }
+    grade
+    studentNumber
+    currentLevel
+    enrollmentDate
+    guardianName
+    guardianPhone
+    guardianEmail
+    specialNeeds
+    isActive
+    
+    # Recent progress
+    progress_records(orderBy: { createdAt: DESC }, limit: 20) {
+      id
+      lesson {
+        title
+        level
+        moduleNumber
+        lessonNumber
+        objectives
+      }
+      status
+      score
+      timeSpent
+      attempts
+      notes
+      completedAt
+      createdAt
+    }
+    
+    # Recent assessments
+    assessments(orderBy: { conductedAt: DESC }, limit: 10) {
+      id
+      title
+      level
+      assessmentType
+      totalQuestions
+      correctAnswers
+      score
+      timeSpent
+      notes
+      conductedAt
+    }
+    
+    # Session attendance
+    session_attendance(orderBy: { createdAt: DESC }, limit: 15) {
+      session {
+        title
+        scheduledDate
+        startTime
+        endTime
+        location
+        status
+      }
+      status
+      arrivalTime
+      departureTime
+      notes
+    }
+  }
+}
+
+# Get tutor's upcoming sessions
+query GetTutorSessions($startDate: Date!, $endDate: Date!) @auth(level: USER) {
+  sessions(
+    where: {
+      userId_expr: "auth.uid"
+      scheduledDate: { gte: $startDate, lte: $endDate }
+    }
+    orderBy: { scheduledDate: ASC, startTime: ASC }
+  ) {
+    id
+    title
+    description
+    scheduledDate
+    startTime
+    endTime
+    location
+    isVirtual
+    meetingLink
+    status
+    lesson {
+      title
+      level
+      moduleNumber
+      lessonNumber
+    }
+    attendance {
+      student {
+        user {
+          firstName
+          lastName
+        }
+        grade
+      }
+      status
+    }
+  }
+}
+
+# Get tutor's timetable
+query GetTutorTimetable @auth(level: USER) {
+  timetables(
+    where: { tutorId_expr: "auth.uid", isActive: true }
+    orderBy: { dayOfWeek: ASC, startTime: ASC }
+  ) {
+    id
+    title
+    dayOfWeek
+    startTime
+    endTime
+    location
+    isRecurring
+    startDate
+    endDate
+    notes
+  }
+}
+
+# Get lessons by level for curriculum planning
+query GetLessonsByLevel($level: PhonoGraphixLevel!) @auth(level: USER) {
+  lessons(
+    where: { level: $level, isActive: true }
+    orderBy: { moduleNumber: ASC, lessonNumber: ASC }
+  ) {
+    id
+    title
+    description
+    level
+    moduleNumber
+    lessonNumber
+    objectives
+    materials
+    duration
+  }
+}
+
+# ===== ADMIN DASHBOARD QUERIES =====
+
+# Get all users for admin management
+query GetAllUsers($role: UserRole) @auth(level: USER) {
+  users(
+    where: { role: { eq: $role } }
+    orderBy: { createdAt: DESC }
+  ) {
+    id
+    email
+    firstName
+    lastName
+    role
+    phoneNumber
+    isActive
+    onboardingCompleted
+    createdAt
+    updatedAt
+  }
+}
+
+# Get all tutors with student counts
+query GetAllTutors @auth(level: USER) {
+  users(where: { role: TUTOR }) {
+    id
+    firstName
+    lastName
+    email
+    phoneNumber
+    isActive
+    createdAt
+    students_as_tutor {
+      id
+      grade
+      isActive
+    }
+  }
+}
+
+# Get all students with tutor assignments
+query GetAllStudents @auth(level: USER) {
+  students(orderBy: { grade: ASC, user: { lastName: ASC } }) {
+    id
+    user {
+      firstName
+      lastName
+      email
+      isActive
+    }
+    grade
+    studentNumber
+    currentLevel
+    enrollmentDate
+    tutor {
+      firstName
+      lastName
+      email
+    }
+    isActive
+  }
+}
+
+# Get system analytics
+query GetSystemAnalytics($startDate: Date!, $endDate: Date!) @auth(level: USER) {
+  analytics(
+    where: { recordDate: { gte: $startDate, lte: $endDate } }
+    orderBy: { recordDate: DESC }
+  ) {
+    id
+    metricName
+    metricValue
+    metricUnit
+    dimension1
+    dimension2
+    recordDate
+  }
+}
+
+# Get progress analytics for admin dashboard
+query GetProgressAnalytics($level: PhonoGraphixLevel, $grade: String) @auth(level: USER) {
+  progress_records(
+    where: {
+      lesson: { level: { eq: $level } }
+      student: { grade: { eq: $grade } }
+      status: { in: [COMPLETED, MASTERED] }
+    }
+  ) {
+    id
+    student {
+      grade
+      user {
+        firstName
+        lastName
+      }
+      tutor {
+        firstName
+        lastName
+      }
+    }
+    lesson {
+      title
+      level
+      moduleNumber
+      lessonNumber
+    }
+    status
+    score
+    timeSpent
+    completedAt
+  }
+}
+
+# ===== SHARED QUERIES =====
+
+# Search students by name or student number
+query SearchStudents($searchTerm: String!) @auth(level: USER) {
+  students(
+    where: {
+      _or: [
+        { user: { firstName: { contains: $searchTerm } } }
+        { user: { lastName: { contains: $searchTerm } } }
+        { studentNumber: { contains: $searchTerm } }
+      ]
+    }
+    limit: 20
+  ) {
+    id
+    user {
+      firstName
+      lastName
+      email
+    }
+    grade
+    studentNumber
+    currentLevel
+    tutor {
+      firstName
+      lastName
+    }
+  }
+}
+
+# Get session details
+query GetSessionDetails($sessionId: UUID!) @auth(level: USER) {
+  session(id: $sessionId) {
+    id
+    title
+    description
+    user {
+      firstName
+      lastName
+    }
+    lesson {
+      title
+      level
+      moduleNumber
+      lessonNumber
+      objectives
+      materials
+    }
+    scheduledDate
+    startTime
+    endTime
+    location
+    isVirtual
+    meetingLink
+    status
+    actualStartTime
+    actualEndTime
+    notes
+    attendance {
+      student {
+        user {
+          firstName
+          lastName
+        }
+        grade
+      }
+      status
+      arrivalTime
+      departureTime
+      notes
+    }
+  }
+}
+
+# Get student progress for a specific level
+query GetStudentProgressByLevel($studentId: UUID!, $level: PhonoGraphixLevel!) @auth(level: USER) {
+  progress_records(
+    where: {
+      studentId: $studentId
+      lesson: { level: $level }
+    }
+    orderBy: { lesson: { moduleNumber: ASC, lessonNumber: ASC } }
+  ) {
+    id
+    lesson {
+      title
+      level
+      moduleNumber
+      lessonNumber
+      objectives
+    }
+    status
+    score
+    timeSpent
+    attempts
+    notes
+    completedAt
+    createdAt
+  }
+}

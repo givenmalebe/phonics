@@ -1,0 +1,495 @@
+# Stretch Education SA - GraphQL Mutations
+
+# ===== USER MANAGEMENT MUTATIONS =====
+
+# Complete user onboarding/profile setup
+mutation CompleteUserOnboarding(
+  $firstName: String!
+  $lastName: String!
+  $phoneNumber: String
+  $dateOfBirth: Date
+  $address: String
+  $profilePicture: String
+) @auth(level: USER) {
+  user_upsert(data: {
+    id_expr: "auth.uid"
+    firstName: $firstName
+    lastName: $lastName
+    phoneNumber: $phoneNumber
+    dateOfBirth: $dateOfBirth
+    address: $address
+    profilePicture: $profilePicture
+    onboardingCompleted: true
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Update user profile
+mutation UpdateUserProfile(
+  $firstName: String
+  $lastName: String
+  $phoneNumber: String
+  $dateOfBirth: Date
+  $address: String
+  $profilePicture: String
+) @auth(level: USER) {
+  user_upsert(data: {
+    id_expr: "auth.uid"
+    firstName: $firstName
+    lastName: $lastName
+    phoneNumber: $phoneNumber
+    dateOfBirth: $dateOfBirth
+    address: $address
+    profilePicture: $profilePicture
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Admin: Create new user (tutor/admin)
+mutation CreateUser(
+  $email: String!
+  $firstName: String!
+  $lastName: String!
+  $role: UserRole!
+  $phoneNumber: String
+) @auth(level: USER) {
+  user_insert(data: {
+    email: $email
+    firstName: $firstName
+    lastName: $lastName
+    role: $role
+    phoneNumber: $phoneNumber
+    isActive: true
+    onboardingCompleted: false
+  })
+}
+
+# Admin: Update user status
+mutation UpdateUserStatus($userId: String!, $isActive: Boolean!) @auth(level: USER) {
+  user_update(
+    key: { id: $userId }
+    data: { isActive: $isActive, updatedAt_expr: "request.time" }
+  )
+}
+
+# ===== STUDENT MANAGEMENT MUTATIONS =====
+
+# Create new student
+mutation CreateStudent(
+  $userId: String!
+  $grade: String!
+  $studentNumber: String!
+  $currentLevel: PhonoGraphixLevel!
+  $enrollmentDate: Date!
+  $guardianName: String
+  $guardianPhone: String
+  $guardianEmail: String
+  $specialNeeds: String
+  $tutorId: String
+) @auth(level: USER) {
+  student_insert(data: {
+    userId: $userId
+    grade: $grade
+    studentNumber: $studentNumber
+    currentLevel: $currentLevel
+    enrollmentDate: $enrollmentDate
+    guardianName: $guardianName
+    guardianPhone: $guardianPhone
+    guardianEmail: $guardianEmail
+    specialNeeds: $specialNeeds
+    tutorId: $tutorId
+    isActive: true
+  })
+}
+
+# Update student information
+mutation UpdateStudent(
+  $studentId: UUID!
+  $grade: String
+  $currentLevel: PhonoGraphixLevel
+  $guardianName: String
+  $guardianPhone: String
+  $guardianEmail: String
+  $specialNeeds: String
+  $tutorId: String
+  $isActive: Boolean
+) @auth(level: USER) {
+  student_update(
+    key: { id: $studentId }
+    data: {
+      grade: $grade
+      currentLevel: $currentLevel
+      guardianName: $guardianName
+      guardianPhone: $guardianPhone
+      guardianEmail: $guardianEmail
+      specialNeeds: $specialNeeds
+      tutorId: $tutorId
+      isActive: $isActive
+    }
+  )
+}
+
+# Assign tutor to student
+mutation AssignTutorToStudent($tutorId: String!, $studentId: UUID!) @auth(level: USER) {
+  tutorStudent_upsert(data: {
+    tutorId: $tutorId
+    studentId: $studentId
+    assignedDate_expr: "request.time"
+    isActive: true
+  })
+}
+
+# Remove tutor assignment
+mutation RemoveTutorAssignment($tutorId: String!, $studentId: UUID!) @auth(level: USER) {
+  tutorStudent_update(
+    key: { tutorId: $tutorId, studentId: $studentId }
+    data: { isActive: false }
+  )
+}
+
+# ===== PROGRESS TRACKING MUTATIONS =====
+
+# Record student progress on a lesson
+mutation RecordProgress(
+  $studentId: UUID!
+  $lessonId: UUID!
+  $status: ProgressStatus!
+  $score: Float
+  $timeSpent: Int
+  $attempts: Int
+  $notes: String
+) @auth(level: USER) {
+  progress_upsert(data: {
+    studentId: $studentId
+    lessonId: $lessonId
+    status: $status
+    score: $score
+    timeSpent: $timeSpent
+    attempts: $attempts
+    notes: $notes
+    completedAt_expr: $status == "COMPLETED" || $status == "MASTERED" ? "request.time" : null
+    updatedAt_expr: "request.time"
+  })
+}
+
+# Update progress record
+mutation UpdateProgress(
+  $progressId: UUID!
+  $status: ProgressStatus
+  $score: Float
+  $timeSpent: Int
+  $attempts: Int
+  $notes: String
+) @auth(level: USER) {
+  progress_update(
+    key: { id: $progressId }
+    data: {
+      status: $status
+      score: $score
+      timeSpent: $timeSpent
+      attempts: $attempts
+      notes: $notes
+      completedAt_expr: $status == "COMPLETED" || $status == "MASTERED" ? "request.time" : null
+      updatedAt_expr: "request.time"
+    }
+  )
+}
+
+# ===== SESSION MANAGEMENT MUTATIONS =====
+
+# Create new teaching session
+mutation CreateSession(
+  $title: String!
+  $description: String
+  $lessonId: UUID
+  $scheduledDate: Date!
+  $startTime: Time!
+  $endTime: Time!
+  $location: String
+  $isVirtual: Boolean
+  $meetingLink: String
+  $notes: String
+) @auth(level: USER) {
+  session_insert(data: {
+    title: $title
+    description: $description
+    userId_expr: "auth.uid"
+    lessonId: $lessonId
+    scheduledDate: $scheduledDate
+    startTime: $startTime
+    endTime: $endTime
+    location: $location
+    isVirtual: $isVirtual
+    meetingLink: $meetingLink
+    status: SCHEDULED
+    notes: $notes
+  })
+}
+
+# Update session
+mutation UpdateSession(
+  $sessionId: UUID!
+  $title: String
+  $description: String
+  $scheduledDate: Date
+  $startTime: Time
+  $endTime: Time
+  $location: String
+  $isVirtual: Boolean
+  $meetingLink: String
+  $status: SessionStatus
+  $notes: String
+) @auth(level: USER) {
+  session_update(
+    key: { id: $sessionId }
+    data: {
+      title: $title
+      description: $description
+      scheduledDate: $scheduledDate
+      startTime: $startTime
+      endTime: $endTime
+      location: $location
+      isVirtual: $isVirtual
+      meetingLink: $meetingLink
+      status: $status
+      notes: $notes
+      updatedAt_expr: "request.time"
+    }
+  )
+}
+
+# Start session (record actual start time)
+mutation StartSession($sessionId: UUID!) @auth(level: USER) {
+  session_update(
+    key: { id: $sessionId }
+    data: {
+      status: IN_PROGRESS
+      actualStartTime_expr: "request.time"
+      updatedAt_expr: "request.time"
+    }
+  )
+}
+
+# End session (record actual end time)
+mutation EndSession($sessionId: UUID!, $notes: String) @auth(level: USER) {
+  session_update(
+    key: { id: $sessionId }
+    data: {
+      status: COMPLETED
+      actualEndTime_expr: "request.time"
+      notes: $notes
+      updatedAt_expr: "request.time"
+    }
+  )
+}
+
+# Record session attendance
+mutation RecordAttendance(
+  $sessionId: UUID!
+  $studentId: UUID!
+  $status: AttendanceStatus!
+  $arrivalTime: Timestamp
+  $departureTime: Timestamp
+  $notes: String
+) @auth(level: USER) {
+  sessionAttendance_upsert(data: {
+    sessionId: $sessionId
+    studentId: $studentId
+    status: $status
+    arrivalTime: $arrivalTime
+    departureTime: $departureTime
+    notes: $notes
+  })
+}
+
+# ===== ASSESSMENT MUTATIONS =====
+
+# Create assessment record
+mutation CreateAssessment(
+  $title: String!
+  $description: String
+  $studentId: UUID!
+  $level: PhonoGraphixLevel!
+  $assessmentType: AssessmentType!
+  $totalQuestions: Int!
+  $correctAnswers: Int!
+  $score: Float!
+  $timeSpent: Int
+  $notes: String
+) @auth(level: USER) {
+  assessment_insert(data: {
+    title: $title
+    description: $description
+    studentId: $studentId
+    level: $level
+    assessmentType: $assessmentType
+    totalQuestions: $totalQuestions
+    correctAnswers: $correctAnswers
+    score: $score
+    timeSpent: $timeSpent
+    notes: $notes
+    conductedBy_expr: "auth.uid"
+    conductedAt_expr: "request.time"
+  })
+}
+
+# Update assessment
+mutation UpdateAssessment(
+  $assessmentId: UUID!
+  $title: String
+  $description: String
+  $totalQuestions: Int
+  $correctAnswers: Int
+  $score: Float
+  $timeSpent: Int
+  $notes: String
+) @auth(level: USER) {
+  assessment_update(
+    key: { id: $assessmentId }
+    data: {
+      title: $title
+      description: $description
+      totalQuestions: $totalQuestions
+      correctAnswers: $correctAnswers
+      score: $score
+      timeSpent: $timeSpent
+      notes: $notes
+    }
+  )
+}
+
+# ===== TIMETABLE MANAGEMENT MUTATIONS =====
+
+# Create timetable entry
+mutation CreateTimetableEntry(
+  $title: String!
+  $dayOfWeek: DayOfWeek!
+  $startTime: Time!
+  $endTime: Time!
+  $location: String
+  $isRecurring: Boolean
+  $startDate: Date!
+  $endDate: Date
+  $notes: String
+) @auth(level: USER) {
+  timetable_insert(data: {
+    title: $title
+    tutorId_expr: "auth.uid"
+    dayOfWeek: $dayOfWeek
+    startTime: $startTime
+    endTime: $endTime
+    location: $location
+    isRecurring: $isRecurring
+    startDate: $startDate
+    endDate: $endDate
+    isActive: true
+    notes: $notes
+  })
+}
+
+# Update timetable entry
+mutation UpdateTimetableEntry(
+  $timetableId: UUID!
+  $title: String
+  $dayOfWeek: DayOfWeek
+  $startTime: Time
+  $endTime: Time
+  $location: String
+  $isRecurring: Boolean
+  $startDate: Date
+  $endDate: Date
+  $isActive: Boolean
+  $notes: String
+) @auth(level: USER) {
+  timetable_update(
+    key: { id: $timetableId }
+    data: {
+      title: $title
+      dayOfWeek: $dayOfWeek
+      startTime: $startTime
+      endTime: $endTime
+      location: $location
+      isRecurring: $isRecurring
+      startDate: $startDate
+      endDate: $endDate
+      isActive: $isActive
+      notes: $notes
+      updatedAt_expr: "request.time"
+    }
+  )
+}
+
+# Delete timetable entry
+mutation DeleteTimetableEntry($timetableId: UUID!) @auth(level: USER) {
+  timetable_delete(key: { id: $timetableId })
+}
+
+# ===== LESSON MANAGEMENT MUTATIONS =====
+
+# Create new lesson (Admin only)
+mutation CreateLesson(
+  $title: String!
+  $description: String
+  $level: PhonoGraphixLevel!
+  $moduleNumber: Int!
+  $lessonNumber: Int!
+  $objectives: String
+  $materials: String
+  $duration: Int
+) @auth(level: USER) {
+  lesson_insert(data: {
+    title: $title
+    description: $description
+    level: $level
+    moduleNumber: $moduleNumber
+    lessonNumber: $lessonNumber
+    objectives: $objectives
+    materials: $materials
+    duration: $duration
+    isActive: true
+  })
+}
+
+# Update lesson
+mutation UpdateLesson(
+  $lessonId: UUID!
+  $title: String
+  $description: String
+  $objectives: String
+  $materials: String
+  $duration: Int
+  $isActive: Boolean
+) @auth(level: USER) {
+  lesson_update(
+    key: { id: $lessonId }
+    data: {
+      title: $title
+      description: $description
+      objectives: $objectives
+      materials: $materials
+      duration: $duration
+      isActive: $isActive
+    }
+  )
+}
+
+# ===== ANALYTICS MUTATIONS =====
+
+# Record analytics data
+mutation RecordAnalytics(
+  $metricName: String!
+  $metricValue: Float!
+  $metricUnit: String
+  $dimension1: String
+  $dimension2: String
+  $recordDate: Date!
+) @auth(level: USER) {
+  analytics_insert(data: {
+    metricName: $metricName
+    metricValue: $metricValue
+    metricUnit: $metricUnit
+    dimension1: $dimension1
+    dimension2: $dimension2
+    recordDate: $recordDate
+  })
+}

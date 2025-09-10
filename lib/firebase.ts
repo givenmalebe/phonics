@@ -1,15 +1,17 @@
 import { initializeApp } from 'firebase/app'
+import { getAnalytics } from 'firebase/analytics'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
+import { getStorage } from 'firebase/storage'
 
 const firebaseConfig = {
-    // Replace with your Firebase project config
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "demo-api-key",
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "phonics-app-demo.firebaseapp.com",
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "phonics-app-demo",
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "phonics-app-demo.appspot.com",
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789",
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:123456789:web:demo"
+  apiKey: "AIzaSyDMBTooa4lO60-XAgv1hYbOjZk3Z6HPxc8",
+  authDomain: "iron-ring-431913-v6.firebaseapp.com",
+  projectId: "iron-ring-431913-v6",
+  storageBucket: "iron-ring-431913-v6.firebasestorage.app",
+  messagingSenderId: "115036740284",
+  appId: "1:115036740284:web:bb8c2e0d9cf5243c708eb9",
+  measurementId: "G-94QM4S75YP"
 }
 
 // Initialize Firebase
@@ -18,5 +20,9 @@ const app = initializeApp(firebaseConfig)
 // Initialize Firebase services
 export const db = getFirestore(app)
 export const auth = getAuth(app)
+export const storage = getStorage(app)
+
+// Initialize Analytics (only in browser)
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null
 
 export default app 

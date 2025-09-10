@@ -46,6 +46,7 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { authService } from "@/lib/auth-service"
+import { mockLogin, getMockUserProfile } from "@/lib/mock-auth"
 
 // STRETCH SA Logo Component
 const StretchLogo = ({ className = "h-12 w-auto" }: { className?: string }) => (
@@ -65,19 +66,19 @@ const features = [
     title: "Structured Curriculum",
     description:
       "Access our comprehensive Phono-Graphix curriculum with four progressive levels: Pink, Blue, Yellow, and Purple.",
-    gradient: "from-blue-500 to-cyan-500",
+    gradient: "from-emerald-500 to-teal-500",
   },
   {
     icon: Users2,
     title: "Student Management",
     description: "Track individual student progress, manage groups, and customize learning paths for each learner.",
-    gradient: "from-purple-500 to-pink-500",
+    gradient: "from-violet-500 to-purple-500",
   },
   {
     icon: BarChart3,
     title: "Progress Analytics",
     description: "Detailed reports and analytics to monitor student growth and identify areas for intervention.",
-    gradient: "from-green-500 to-emerald-500",
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
     icon: Award,
@@ -87,20 +88,11 @@ const features = [
   },
 ]
 
-
-
 const stats = [
   { number: "500+", label: "Active Tutors", icon: Users2 },
   { number: "95%", label: "Student Success Rate", icon: TrendingUp },
   { number: "10,000+", label: "Students Helped", icon: GraduationCap },
   { number: "4", label: "Learning Levels", icon: BookOpen },
-]
-
-const quickActions = [
-  { title: "Start New Session", icon: Play, color: "from-blue-500 to-cyan-500" },
-  { title: "View Progress Reports", icon: BarChart3, color: "from-green-500 to-emerald-500" },
-  { title: "Manage Students", icon: Users2, color: "from-purple-500 to-pink-500" },
-  { title: "Access Resources", icon: BookMarked, color: "from-orange-500 to-red-500" },
 ]
 
 export default function LandingPage() {
@@ -128,11 +120,30 @@ export default function LandingPage() {
     }
 
     try {
-      const { profile } = await authService.login(loginData.email, loginData.password)
+      // Use mock authentication for testing
+      const mockUser = mockLogin(loginData.email, loginData.password)
+      if (!mockUser) {
+        throw new Error("Authentication failed")
+      }
+      const profile = getMockUserProfile(mockUser.uid)
       
-      // Redirect based on onboarding status
+      if (!profile) {
+        throw new Error("Failed to get user profile")
+      }
+      
+      // Redirect based on role and onboarding status
       if (profile.onboardingCompleted) {
+        switch (profile.role) {
+          case 'ADMIN':
+            router.replace("/admin")
+            break
+          case 'TUTOR':
+            router.replace("/tutor")
+            break
+          
+          default:
         router.replace("/")
+        }
       } else {
         router.replace("/onboarding")
       }
@@ -152,13 +163,32 @@ export default function LandingPage() {
 
     setModalLoading(true)
     try {
-      const { profile } = await authService.login(modalLoginData.email, modalLoginData.password)
+      // Use mock authentication for testing
+      const mockUser = mockLogin(modalLoginData.email, modalLoginData.password)
+      if (!mockUser) {
+        throw new Error("Authentication failed")
+      }
+      const profile = getMockUserProfile(mockUser.uid)
+      
+      if (!profile) {
+        throw new Error("Failed to get user profile")
+      }
       
       setIsLoginModalOpen(false)
       
-      // Redirect based on onboarding status
+      // Redirect based on role and onboarding status
       if (profile.onboardingCompleted) {
+        switch (profile.role) {
+          case 'ADMIN':
+            router.replace("/admin")
+            break
+          case 'TUTOR':
+            router.replace("/tutor")
+            break
+          
+          default:
         router.replace("/")
+        }
       } else {
         router.replace("/onboarding")
       }
@@ -285,6 +315,14 @@ export default function LandingPage() {
                     </Button>
                     
                     <div className="text-center text-sm text-gray-600">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <p className="font-semibold text-blue-800 mb-2">🧪 Test Credentials:</p>
+                        <div className="text-xs space-y-1 text-blue-700">
+                          <p><strong>Admin:</strong> admin@test.com / test123</p>
+                          <p><strong>Tutor:</strong> jack@test.com / test123</p>
+          
+                        </div>
+                      </div>
                       Need help?{" "}
                       <button
                         type="button"
@@ -334,7 +372,6 @@ export default function LandingPage() {
               >
                 Methodology
               </a>
-
               <a 
                 href="#contact" 
                 className="block text-gray-600 hover:text-blue-600 transition-colors font-medium"
@@ -342,161 +379,89 @@ export default function LandingPage() {
               >
                 Support
               </a>
-              <Dialog open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-blue-200 hover:border-blue-300 hover:bg-blue-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Sign In
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md border-0 shadow-2xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-center text-xl font-bold">Welcome Back, Tutor</DialogTitle>
-                    <DialogDescription className="text-center">
-                      Sign in to your Stretch Education tutor account
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <form onSubmit={handleModalLogin} className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="modalEmailMobile" className="text-sm font-medium">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="modalEmailMobile"
-                          type="email"
-                          placeholder="Enter your email"
-                          className="pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          value={modalLoginData.email}
-                          onChange={(e) => setModalLoginData({ ...modalLoginData, email: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="modalPasswordMobile" className="text-sm font-medium">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="modalPasswordMobile"
-                          type={showModalPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          className="pl-10 pr-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                          value={modalLoginData.password}
-                          onChange={(e) => setModalLoginData({ ...modalLoginData, password: e.target.value })}
-                          required
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                          onClick={() => setShowModalPassword(!showModalPassword)}
-                        >
-                          {showModalPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                      disabled={modalLoading}
-                    >
-                      {modalLoading ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Signing In...</span>
-                        </div>
-                      ) : (
-                        "Sign In"
-                      )}
-                    </Button>
-                    
-                    <div className="text-center text-sm text-gray-600">
-                      Need help?{" "}
-                      <button
-                        type="button"
-                        className="text-blue-600 hover:underline font-medium"
-                        onClick={() => {
-                          setIsLoginModalOpen(false)
-                          document.getElementById("contact")?.scrollIntoView({ behavior: 'smooth' })
-                        }}
-                      >
-                        Contact Support
-                      </button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
         )}
       </nav>
 
-      {/* Modern Hero Section */}
-      <section className="relative py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      {/* Creative Hero Section with Centered Heading */}
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Background Logo Watermark */}
         <div className="absolute inset-0 flex items-center justify-center opacity-3 pointer-events-none">
           <StretchLogo className="h-[600px] w-auto" />
         </div>
         
+        {/* Floating Decorative Elements */}
+        <div className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-br from-blue-200/30 to-purple-200/30 rounded-full animate-bounce delay-300"></div>
+        <div className="absolute top-32 right-16 w-16 h-16 bg-gradient-to-br from-pink-200/30 to-orange-200/30 rounded-2xl rotate-45 animate-pulse delay-700"></div>
+        <div className="absolute bottom-40 left-20 w-12 h-12 bg-gradient-to-br from-emerald-200/30 to-cyan-200/30 rounded-full animate-bounce delay-1000"></div>
+        
         <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left Column - Content */}
-            <div className={`space-y-10 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            <div className="space-y-8">
-                <div className="space-y-6">
-                  <h1 className="text-6xl md:text-8xl font-bold leading-tight text-center lg:text-left">
-                    <span className="text-gray-900">Phono-Graphix with</span>
-                    <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
-                      Stretch Education
+          {/* Main Heading - Centered at Top */}
+          <div className="text-center mb-20">
+            <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              {/* Creative Heading with Decorative Elements */}
+              <div className="relative inline-block">
+                {/* Decorative Lines */}
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                
+                {/* Main Heading */}
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight relative">
+                  <span className="block text-gray-900 mb-2">Phono-Graphix</span>
+                  <span className="block text-base md:text-lg font-medium text-gray-600 mb-2">with</span>
+                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+                    Stretch Education
                   </span>
                 </h1>
-                  
-                  <div className="flex items-center justify-center lg:justify-start space-x-3 mb-6">
-                    <div className="p-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl">
-                      <GraduationCap className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <Badge className="bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200 px-4 py-2 text-base font-medium">
-                      Professional Tutor Platform
-                    </Badge>
-                  </div>
-                  
-                  <h2 className="text-2xl md:text-4xl font-semibold text-gray-700 leading-relaxed">
-                    Empower Your{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                      Teaching Journey
-                    </span>
-                  </h2>
-                  
-                  <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
-                    Access our comprehensive Phono-Graphix platform designed specifically for tutors. 
-                    Manage students, track progress, and deliver evidence-based reading instruction with confidence.
-                  </p>
+                
+                {/* Decorative Stars */}
+                <div className="absolute -top-4 -left-8 text-blue-400">
+                  <Sparkles className="h-8 w-8 animate-pulse" />
+                </div>
+                <div className="absolute -top-2 -right-6 text-purple-400">
+                  <Sparkles className="h-6 w-6 animate-pulse delay-500" />
                 </div>
               </div>
+              
+              {/* Subtitle Badge */}
+              <div className="flex items-center justify-center space-x-3 mt-12 mb-8">
+                <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-3xl shadow-lg">
+                  <GraduationCap className="h-10 w-10 text-blue-600" />
+                </div>
+                <Badge className="bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border-2 border-blue-200 px-6 py-3 text-xl font-semibold rounded-2xl shadow-lg">
+                  Professional Tutor Platform
+                </Badge>
+              </div>
+            </div>
+          </div>
+          
+          {/* Content Grid Below Heading */}
+          <div className="grid lg:grid-cols-2 gap-16 items-start">
+            {/* Left Column - Description */}
+            <div className={`space-y-10 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+              <div className="space-y-8">
+                <h2 className="text-2xl md:text-4xl font-semibold text-gray-700 leading-relaxed">
+                  Empower Your{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                    Teaching Journey
+                  </span>
+                </h2>
+                
+                <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
+                  Access our comprehensive Phono-Graphix platform designed specifically for tutors. 
+                  Manage students, track progress, and deliver evidence-based reading instruction with confidence.
+                </p>
+              </div>
 
-              <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex justify-center">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 text-xl px-10 py-8 rounded-2xl group"
-                  onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 text-xl px-12 py-8 rounded-2xl group"
+                  onClick={() => setIsLoginModalOpen(true)}
                 >
-                  <span className="relative z-10">Explore Platform</span>
-                  <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform duration-300" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-700 hover:text-blue-700 text-xl px-10 py-8 rounded-2xl transition-all duration-300"
-                >
-                  <Play className="mr-3 h-6 w-6" />
-                  Watch Demo
+                  <User className="mr-3 h-6 w-6" />
+                  <span className="relative z-10">Sign In</span>
                 </Button>
               </div>
             </div>
@@ -564,55 +529,55 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-24 bg-gradient-to-br from-gray-50 to-blue-50/30">
+      <section id="about" className="py-32 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
-            <div className="space-y-6">
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900">Stretch Education</h2>
+          <div className="grid lg:grid-cols-2 gap-20 items-center">
+            <div className="space-y-12">
+              <div className="space-y-8">
+                <h2 className="text-5xl md:text-6xl font-bold text-gray-900">Stretch Education</h2>
                 <p className="text-xl text-gray-600 leading-relaxed">
                   Master the evidence-based Phono-Graphix approach to reading instruction. Our platform provides 
                   the tools and resources you need to implement this proven methodology effectively.
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {[
                   "Systematic progression through four distinct levels",
                   "Comprehensive student assessment and tracking",
                   "Evidence-based methodology with proven results",
                   "Professional development and certification support",
                 ].map((point, index) => (
-                  <div key={index} className="flex items-center space-x-4 group">
-                    <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                      <CheckCircle className="h-5 w-5 text-white" />
+                  <div key={index} className="flex items-center space-x-6 group">
+                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
+                      <CheckCircle className="h-6 w-6 text-white" />
                     </div>
-                    <span className="text-gray-700 text-lg font-medium">{point}</span>
+                    <span className="text-gray-700 text-xl font-medium">{point}</span>
                   </div>
                 ))}
               </div>
 
-              <Button size="lg" variant="outline" className="border-2 border-blue-200 hover:border-blue-300 hover:bg-blue-50 text-lg px-8 py-6">
+              <Button size="lg" variant="outline" className="border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-700 hover:text-blue-700 text-xl px-10 py-8 rounded-2xl transition-all duration-300">
                 Learn More About Our Method
-                <ArrowRight className="ml-2 h-5 w-5" />
+                <ArrowRight className="ml-4 h-6 w-6" />
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-8">
               {[
-                { title: "Pink Level", desc: "Basic sound-symbol relationships", color: "from-pink-400 to-rose-400", bg: "from-pink-50 to-rose-50" },
-                { title: "Blue Level", desc: "Consonant blends and digraphs", color: "from-blue-400 to-cyan-400", bg: "from-blue-50 to-cyan-50" },
+                { title: "Pink Level", desc: "Basic sound-symbol relationships", color: "from-pink-500 to-rose-500", bg: "from-pink-50 to-rose-50" },
+                { title: "Blue Level", desc: "Consonant blends and digraphs", color: "from-blue-500 to-cyan-500", bg: "from-blue-50 to-cyan-50" },
                 {
                   title: "Yellow Level",
                   desc: "Multisyllabic word decoding",
-                  color: "from-yellow-400 to-orange-400",
+                  color: "from-yellow-500 to-orange-500",
                   bg: "from-yellow-50 to-orange-50",
                 },
-                { title: "Purple Level", desc: "Advanced code knowledge", color: "from-purple-400 to-violet-400", bg: "from-purple-50 to-violet-50" },
+                { title: "Purple Level", desc: "Advanced code knowledge", color: "from-purple-500 to-violet-500", bg: "from-purple-50 to-violet-50" },
               ].map((level, index) => (
-                <Card key={index} className={`bg-gradient-to-br ${level.bg} border-2 border-transparent hover:border-gray-200 transition-all duration-300 group hover:shadow-lg`}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg font-bold">{level.title}</CardTitle>
+                <Card key={index} className={`bg-gradient-to-br ${level.bg} border-2 border-gray-200/50 hover:border-blue-200 transition-all duration-300 group hover:shadow-2xl rounded-3xl`}>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-xl font-bold text-gray-900">{level.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-gray-700 leading-relaxed">{level.desc}</p>
@@ -624,55 +589,58 @@ export default function LandingPage() {
         </div>
       </section>
 
-
-
       {/* Contact Section */}
-      <section id="contact" className="py-24 bg-gradient-to-br from-gray-50 to-blue-50/30">
+      <section id="contact" className="py-32 bg-gradient-to-br from-gray-50 to-blue-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-6 mb-20">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <Headphones className="h-6 w-6 text-blue-500" />
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900">Tutor Support</h2>
+          <div className="text-center space-y-12 mb-32">
+            <div className="flex items-center justify-center space-x-4 mb-8">
+              <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-3xl">
+                <Headphones className="h-10 w-10 text-blue-600" />
+              </div>
+              <h2 className="text-6xl md:text-7xl font-bold text-gray-900">Tutor Support</h2>
             </div>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Need help? Our dedicated support team is here to assist you with any questions about the platform or methodology.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-white/80 backdrop-blur-sm group">
+          <div className="grid md:grid-cols-3 gap-12">
+            <Card className="text-center border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 bg-white/90 backdrop-blur-sm group border border-gray-200/30 rounded-3xl">
               <CardHeader>
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Mail className="h-8 w-8 text-white" />
+                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform duration-500 relative">
+                  <Mail className="h-10 w-10 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-3xl blur-xl opacity-30"></div>
                 </div>
-                <CardTitle className="text-xl font-bold">Email Support</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-900">Email Support</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 font-medium">support@stretcheducation.edu</p>
+                <p className="text-gray-600 font-medium text-lg">support@stretcheducation.edu</p>
               </CardContent>
             </Card>
 
-            <Card className="text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-white/80 backdrop-blur-sm group">
+            <Card className="text-center border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 bg-white/90 backdrop-blur-sm group border border-gray-200/30 rounded-3xl">
               <CardHeader>
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Phone className="h-8 w-8 text-white" />
+                <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform duration-500 relative">
+                  <Phone className="h-10 w-10 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-500 rounded-3xl blur-xl opacity-30"></div>
                 </div>
-                <CardTitle className="text-xl font-bold">Phone Support</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-900">Phone Support</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 font-medium">1-800-STRETCH</p>
+                <p className="text-gray-600 font-medium text-lg">1-800-STRETCH</p>
               </CardContent>
             </Card>
 
-            <Card className="text-center border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-white/80 backdrop-blur-sm group">
+            <Card className="text-center border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 bg-white/90 backdrop-blur-sm group border border-gray-200/30 rounded-3xl">
               <CardHeader>
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <BookMarked className="h-8 w-8 text-white" />
+                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-transform duration-500 relative">
+                  <BookMarked className="h-10 w-10 text-white" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl blur-xl opacity-30"></div>
                 </div>
-                <CardTitle className="text-xl font-bold">Training Resources</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-900">Training Resources</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 font-medium">Access tutorials and guides</p>
+                <p className="text-gray-600 font-medium text-lg">Access tutorials and guides</p>
               </CardContent>
             </Card>
           </div>
@@ -680,93 +648,93 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16">
+      <footer className="bg-gradient-to-br from-gray-900 to-black text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="space-y-6">
-              <div className="flex items-center space-x-3">
-                <StretchLogo className="h-16 w-auto" />
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <div className="grid md:grid-cols-4 gap-12">
+            <div className="space-y-8">
+              <div className="flex items-center space-x-4">
+                <StretchLogo className="h-20 w-auto" />
+                <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   Stretch Education SA
                 </span>
               </div>
-              <p className="text-gray-400 leading-relaxed">
+              <p className="text-gray-400 leading-relaxed text-lg">
                 Empowering tutors with evidence-based reading instruction tools and comprehensive support.
               </p>
             </div>
 
-            <div className="space-y-6">
-              <h3 className="font-semibold text-lg">Platform</h3>
-              <ul className="space-y-3 text-gray-400">
+            <div className="space-y-8">
+              <h3 className="font-semibold text-xl text-white">Platform</h3>
+              <ul className="space-y-4 text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Features
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Training
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Resources
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Support
                   </a>
                 </li>
               </ul>
             </div>
 
-            <div className="space-y-6">
-              <h3 className="font-semibold text-lg">Methodology</h3>
-              <ul className="space-y-3 text-gray-400">
+            <div className="space-y-8">
+              <h3 className="font-semibold text-xl text-white">Methodology</h3>
+              <ul className="space-y-4 text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Phono-Graphix
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Certification
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Research
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Best Practices
                   </a>
                 </li>
               </ul>
             </div>
 
-            <div className="space-y-6">
-              <h3 className="font-semibold text-lg">Legal</h3>
-              <ul className="space-y-3 text-gray-400">
+            <div className="space-y-8">
+              <h3 className="font-semibold text-xl text-white">Legal</h3>
+              <ul className="space-y-4 text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Privacy Policy
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Terms of Service
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Cookie Policy
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors duration-200">
+                  <a href="#" className="hover:text-white transition-colors duration-200 text-lg">
                     Accessibility
                   </a>
                 </li>
@@ -774,12 +742,11 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 Stretch Education SA. All rights reserved.</p>
+          <div className="border-t border-white/10 mt-16 pt-12 text-center text-gray-400">
+            <p className="text-lg">&copy; 2024 Stretch Education SA. All rights reserved.</p>
           </div>
         </div>
       </footer>
-
     </div>
   )
 }

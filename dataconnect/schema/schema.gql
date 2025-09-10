@@ -1,0 +1,275 @@
+# Stretch Education SA - Phono-Graphix Platform Schema
+
+# User table for authentication and role management
+type User @table {
+  # Firebase Auth UID as primary key
+  id: String! @default(expr: "auth.uid")
+  email: String! @col(dataType: "varchar(255)")
+  firstName: String! @col(dataType: "varchar(100)")
+  lastName: String! @col(dataType: "varchar(100)")
+  role: UserRole!
+  phoneNumber: String @col(dataType: "varchar(20)")
+  dateOfBirth: Date
+  address: String @col(dataType: "text")
+  profilePicture: String @col(dataType: "varchar(500)")
+  isActive: Boolean! @default(expr: "true")
+  onboardingCompleted: Boolean! @default(expr: "false")
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+  
+  # Relationships
+  # If user is a tutor, they can have many students
+  students_as_tutor: [Student!]! @relation(fields: ["id"], references: ["tutorId"])
+  # If user is a student, they have one tutor
+  tutor_assignments: [TutorStudent!]! @relation(fields: ["id"], references: ["studentId"])
+  # Sessions taught or attended
+  sessions: [Session!]! @relation(fields: ["id"], references: ["userId"])
+  # Progress records
+  progress_records: [Progress!]! @relation(fields: ["id"], references: ["studentId"])
+}
+
+# User roles enum
+enum UserRole {
+  ADMIN
+  TUTOR
+}
+
+# Student information table
+type Student @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! # Reference to User table
+  user: User! @relation(fields: ["userId"], references: ["id"])
+  
+  # Student specific information
+  grade: String! @col(dataType: "varchar(10)") # 3A, 3B, 3C, 3D, 3E
+  studentNumber: String! @col(dataType: "varchar(50)")
+  currentLevel: PhonoGraphixLevel!
+  enrollmentDate: Date!
+  guardianName: String @col(dataType: "varchar(200)")
+  guardianPhone: String @col(dataType: "varchar(20)")
+  guardianEmail: String @col(dataType: "varchar(255)")
+  specialNeeds: String @col(dataType: "text")
+  isActive: Boolean! @default(expr: "true")
+  
+  # Primary tutor assignment
+  tutorId: String
+  tutor: User @relation(fields: ["tutorId"], references: ["id"])
+  
+  # Relationships
+  tutor_assignments: [TutorStudent!]! @relation(fields: ["id"], references: ["studentId"])
+  progress_records: [Progress!]! @relation(fields: ["id"], references: ["studentId"])
+  session_attendance: [SessionAttendance!]! @relation(fields: ["id"], references: ["studentId"])
+  assessments: [Assessment!]! @relation(fields: ["id"], references: ["studentId"])
+}
+
+# Phono-Graphix levels enum
+enum PhonoGraphixLevel {
+  PINK
+  BLUE
+  YELLOW
+  PURPLE
+}
+
+# Junction table for tutor-student relationships (many-to-many)
+type TutorStudent @table(key: ["tutorId", "studentId"]) {
+  tutorId: String!
+  tutor: User! @relation(fields: ["tutorId"], references: ["id"])
+  studentId: UUID!
+  student: Student! @relation(fields: ["studentId"], references: ["id"])
+  assignedDate: Date! @default(expr: "request.time")
+  isActive: Boolean! @default(expr: "true")
+}
+
+# Lesson/Module structure
+type Lesson @table {
+  id: UUID! @default(expr: "uuidV4()")
+  title: String! @col(dataType: "varchar(200)")
+  description: String @col(dataType: "text")
+  level: PhonoGraphixLevel!
+  moduleNumber: Int!
+  lessonNumber: Int!
+  objectives: String @col(dataType: "text")
+  materials: String @col(dataType: "text")
+  duration: Int # Duration in minutes
+  isActive: Boolean! @default(expr: "true")
+  createdAt: Timestamp! @default(expr: "request.time")
+  
+  # Relationships
+  progress_records: [Progress!]! @relation(fields: ["id"], references: ["lessonId"])
+  sessions: [Session!]! @relation(fields: ["id"], references: ["lessonId"])
+}
+
+# Student progress tracking
+type Progress @table {
+  id: UUID! @default(expr: "uuidV4()")
+  studentId: UUID!
+  student: Student! @relation(fields: ["studentId"], references: ["id"])
+  lessonId: UUID!
+  lesson: Lesson! @relation(fields: ["lessonId"], references: ["id"])
+  
+  # Progress details
+  status: ProgressStatus!
+  score: Float # 0-100 percentage
+  timeSpent: Int # Time in minutes
+  attempts: Int! @default(expr: "1")
+  notes: String @col(dataType: "text")
+  completedAt: Timestamp
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# Progress status enum
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  MASTERED
+  NEEDS_REVIEW
+}
+
+# Teaching sessions
+type Session @table {
+  id: UUID! @default(expr: "uuidV4()")
+  title: String! @col(dataType: "varchar(200)")
+  description: String @col(dataType: "text")
+  
+  # Session details
+  userId: String! # Tutor conducting the session
+  user: User! @relation(fields: ["userId"], references: ["id"])
+  lessonId: UUID
+  lesson: Lesson @relation(fields: ["lessonId"], references: ["id"])
+  
+  # Scheduling
+  scheduledDate: Date!
+  startTime: Time!
+  endTime: Time!
+  location: String @col(dataType: "varchar(200)")
+  isVirtual: Boolean! @default(expr: "false")
+  meetingLink: String @col(dataType: "varchar(500)")
+  
+  # Session status
+  status: SessionStatus!
+  actualStartTime: Timestamp
+  actualEndTime: Timestamp
+  notes: String @col(dataType: "text")
+  
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+  
+  # Relationships
+  attendance: [SessionAttendance!]! @relation(fields: ["id"], references: ["sessionId"])
+}
+
+# Session status enum
+enum SessionStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+# Session attendance tracking
+type SessionAttendance @table(key: ["sessionId", "studentId"]) {
+  sessionId: UUID!
+  session: Session! @relation(fields: ["sessionId"], references: ["id"])
+  studentId: UUID!
+  student: Student! @relation(fields: ["studentId"], references: ["id"])
+  
+  # Attendance details
+  status: AttendanceStatus!
+  arrivalTime: Timestamp
+  departureTime: Timestamp
+  notes: String @col(dataType: "text")
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# Attendance status enum
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+# Assessment/Test results
+type Assessment @table {
+  id: UUID! @default(expr: "uuidV4()")
+  title: String! @col(dataType: "varchar(200)")
+  description: String @col(dataType: "text")
+  
+  # Assessment details
+  studentId: UUID!
+  student: Student! @relation(fields: ["studentId"], references: ["id"])
+  level: PhonoGraphixLevel!
+  assessmentType: AssessmentType!
+  
+  # Results
+  totalQuestions: Int!
+  correctAnswers: Int!
+  score: Float! # Percentage score
+  timeSpent: Int # Time in minutes
+  notes: String @col(dataType: "text")
+  
+  # Metadata
+  conductedBy: String! # Tutor ID
+  conductedAt: Timestamp! @default(expr: "request.time")
+  createdAt: Timestamp! @default(expr: "request.time")
+}
+
+# Assessment type enum
+enum AssessmentType {
+  DIAGNOSTIC
+  FORMATIVE
+  SUMMATIVE
+  PLACEMENT
+}
+
+# Timetable/Schedule management
+type Timetable @table {
+  id: UUID! @default(expr: "uuidV4()")
+  title: String! @col(dataType: "varchar(200)")
+  
+  # Schedule details
+  tutorId: String!
+  tutor: User! @relation(fields: ["tutorId"], references: ["id"])
+  dayOfWeek: DayOfWeek!
+  startTime: Time!
+  endTime: Time!
+  location: String @col(dataType: "varchar(200)")
+  
+  # Recurrence
+  isRecurring: Boolean! @default(expr: "true")
+  startDate: Date!
+  endDate: Date
+  
+  # Status
+  isActive: Boolean! @default(expr: "true")
+  notes: String @col(dataType: "text")
+  
+  createdAt: Timestamp! @default(expr: "request.time")
+  updatedAt: Timestamp! @default(expr: "request.time")
+}
+
+# Day of week enum
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+# System analytics and reporting
+type Analytics @table {
+  id: UUID! @default(expr: "uuidV4()")
+  metricName: String! @col(dataType: "varchar(100)")
+  metricValue: Float!
+  metricUnit: String @col(dataType: "varchar(50)")
+  dimension1: String @col(dataType: "varchar(100)") # e.g., tutorId, grade, level
+  dimension2: String @col(dataType: "varchar(100)") # e.g., month, week
+  recordDate: Date!
+  createdAt: Timestamp! @default(expr: "request.time")
+}
